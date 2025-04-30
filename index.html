@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ELARA</title>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+    input { width: 70%; }
+  </style>
+</head>
+<body>
+  <h2>ELARA</h2>
+  <div id="chat"></div>
+  <input id="input" type="text" placeholder="Ask me something...">
+  <button onclick="handleChat()">Send</button>
+
+  <script>
+    let pyodide;
+
+    async function main() {
+      pyodide = await loadPyodide();
+      const response = await fetch("chatbot.py");
+      const pyCode = await response.text();
+      await pyodide.runPythonAsync(pyCode);
+      console.log("Pyodide and chatbot.py loaded");
+    }
+
+    async function handleChat() {
+      const inputBox = document.getElementById("input");
+      const query = inputBox.value.trim();
+      inputBox.value = "";
+
+      addMessage("You", query);
+
+      // Call the Python function
+      const pythonCode = `answer(${JSON.stringify(query)})`;
+      let pyAnswer = await pyodide.runPythonAsync(pythonCode);
+
+      // If Python returns special flag, do Wikipedia lookup
+      if (pyAnswer === "__wikipedia__") {
+        const topic = extractWikiTopic(query);
+        const summary = await fetchWiki(topic);
+
+        function extractWikiTopic(text) {
+            text = text.toLowerCase().trim();
+
+            // Remove leading question words
+            const patterns = [
+                /^who is /, /^what is /, /^tell me about /, /^do you know /,
+                /^explain /, /^define /, /^give me information about /,
+                /^can you tell me about /, /^can you explain /, /^can you define /, /^who was /, /^tell me about the /
+            ];
+
+            for (const pattern of patterns) {
+                text = text.replace(pattern, "");
+            }
+
+            // Capitalize each word
+            return text
+                .split(" ")
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ");
+            }
+
+        pyAnswer = summary || "I couldn't find anything on Wikipedia.";
+      }
+
+      addMessage("ELARA", pyAnswer);
+    }
+
+    function addMessage(sender, message) {
+      const chat = document.getElementById("chat");
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>${sender}:</strong> ${message}`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    // Function to display disambiguation options when multiple results are found
+    function showDisambiguationOptions(title, options) {
+      const chat = document.getElementById("chat");
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>Options for "${title}":</strong><br>`;
+
+      // Display each option returned by Wikipedia
+      options.forEach(option => {
+        const btn = document.createElement("button");
+        btn.textContent = option; // Display the option title directly
+        btn.onclick = async () => {
+          addMessage("You", option); // User selects this option
+          const summary = await fetchWiki(option, true); // Fetch summary for selected option
+          addMessage("ELARA", summary); // Display summary in the chat
+        };
+        btn.style.margin = "4px";
+        div.appendChild(btn);
+      });
+
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight; // Scroll to the bottom
+    }
+
+    // Function to fetch Wikipedia summary or handle disambiguation
+    async function fetchWiki(title, direct = false) {
+      const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+
+        // Log the entire data object for debugging
+        console.log(data);
+
+        // If it's a disambiguation page and we are not directly fetching, show options
+        if (data.type === "disambiguation" && !direct) {
+          const options = data.titles || []; // Extract titles from disambiguation
+          if (options.length > 0) {
+            showDisambiguationOptions(title, options); // Display disambiguation options
+            return `Hmm, "${title}" could refer to multiple things. Please select one:`;
+          }
+        }
+
+        // If it's a standard summary response or direct query, return the extract
+        if (data.type === "standard" || direct) {
+          return data.extract || "No summary available.";
+        }
+
+        return null;
+      } catch (error) {
+        console.error("Error fetching from Wikipedia:", error);
+        return "Sorry, I couldn't fetch that information.";
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>
