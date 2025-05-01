@@ -193,8 +193,32 @@
       }
     }
 
-    main(); // Start Pyodide loading
+    function closeModal() {
+      document.getElementById("helpModal").style.display = "none";
+    }
+
+    window.onload = () => {
+      document.getElementById("helpModal").style.display = "flex";
+      main(); // Don't forget to still start ELARA
+    };
+
+        
   </script>
 
 </body>
+<div id="helpModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3>Welcome to ELARA V1.5!</h3>
+    <p>You can ask ELARA questions like:</p>
+    <ul>
+      <li>“What's the capital of France?”</li>
+      <li>“Who is Albert Einstein?”</li>
+      <li>“Tell me about George Washington”</li>
+      <li>“Clear” or “Restart” to refresh the chat</li>
+    </ul>
+    <p>Type your question below and press Enter or click Send.</p>
+  </div>
+</div>
+
 </html>
