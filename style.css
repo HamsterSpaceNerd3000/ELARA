@@ -1,0 +1,95 @@
+/* style.css - Futuristic theme for ELARA */
+
+body {
+    font-family: "Orbitron", sans-serif;
+    background: radial-gradient(circle at center, #0f2027, #203a43, #2c5364);
+    color: #00ffe7;
+    margin: 0;
+    padding: 20px;
+    overflow: hidden;
+  }
+  
+  h2 {
+    font-size: 2em;
+    color: #00ffe7;
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+  }
+  
+  #chat {
+    border: 2px solid #00ffe7;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 15px;
+    height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px #00ffe7;
+  }
+  
+  input {
+    width: 70%;
+    padding: 10px;
+    font-size: 1em;
+    border: 1px solid #00ffe7;
+    background-color: #111;
+    color: #00ffe7;
+    border-radius: 5px;
+    margin-right: 10px;
+  }
+  
+  button {
+    padding: 10px 20px;
+    font-size: 1em;
+    background: linear-gradient(45deg, #00ffe7, #0099ff);
+    color: #000;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 0 10px #00ffe7;
+    transition: background 0.3s, transform 0.2s;
+  }
+  
+  button:hover {
+    background: linear-gradient(45deg, #0099ff, #00ffe7);
+    transform: scale(1.05);
+  }
+  
+  button:active {
+    transform: scale(0.98);
+  }
+  
+  .loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    color: #00ffe7;
+    font-size: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    font-family: "Orbitron", sans-serif;
+    letter-spacing: 1px;
+  }
+  
+  .futuristic-button {
+    background-color: transparent;
+    border: 1px solid #00ffe7;
+    color: #00ffe7;
+    margin: 5px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: "Orbitron", sans-serif;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  .futuristic-button:hover {
+    background-color: rgba(0, 255, 231, 0.1);
+  }
+  

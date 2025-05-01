@@ -1,30 +1,85 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ELARA</title>
+  <link rel="icon" type="image/x-icon" href="/ELARA Icon.png">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; }
+    body { font-family: 'Orbitron', sans-serif; padding: 20px; }
     #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
     input { width: 70%; }
-    button { cursor: pointer; }
+    #loadingScreen { 
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.8); display: flex; justify-content: center;
+      align-items: center; font-size: 24px; color: white; z-index: 999;
+    }
   </style>
 </head>
 <body>
-  <h2>ELARA</h2>
+  <div id="loadingScreen">Waking ELARA...</div>
+  <h2>ELARA V1.0</h2>
   <div id="chat"></div>
-  <input id="input" type="text" placeholder="Ask me something...">
+  <input id="input" type="text" placeholder="Ask me something..." onkeydown="checkEnter(event)">
   <button onclick="handleChat()">Send</button>
 
   <script>
     let pyodide;
 
     async function main() {
+      console.log("Loading Pyodide...");
       pyodide = await loadPyodide();
       const response = await fetch("chatbot.py");
       const pyCode = await response.text();
       await pyodide.runPythonAsync(pyCode);
-      console.log("Pyodide and chatbot.py loaded");
+      document.getElementById("loadingScreen").style.display = "none"; // Hide the loading screen
+      console.log("Pyodide and chatbot.py loaded successfully");
+    }
+
+    async function handleChat() {
+      const inputBox = document.getElementById("input");
+      const query = inputBox.value.trim();
+      inputBox.value = "";
+
+      addMessage("You", query);
+      console.log("User asked:", query);
+
+      const pythonCode = `answer(${JSON.stringify(query)})`;
+      let pyAnswer = await pyodide.runPythonAsync(pythonCode);
+      console.log("Python returned:", pyAnswer);
+
+      if (pyAnswer === "__wikipedia__") {
+        const topic = extractWikiTopic(query);
+        console.log("Fallback to Wikipedia for topic:", topic);
+        const summary = await fetchWiki(topic);
+        if (summary !== "__disambiguation__") {
+          addMessage("ELARA", summary);
+        }
+        return;
+      }
+
+      if (pyAnswer === "__restart__") {
+        console.log("Restarting ELARA...");
+        resetChat();
+        await main();  // Reinitialize Pyodide
+        addMessage("ELARA", "ELARA has been restarted.");
+        return;
+      }
+
+      addMessage("ELARA", pyAnswer);
+    }
+
+    function resetChat() {
+        window.location.reload();
+    }
+
+    function checkEnter(event) {
+      if (event.key === "Enter") {
+        handleChat();
+      }
     }
 
     function extractWikiTopic(text) {
@@ -32,64 +87,17 @@
       const patterns = [
         /^who is /, /^what is /, /^tell me about /, /^do you know /,
         /^explain /, /^define /, /^give me information about /,
-        /^can you tell me about /, /^can you explain /, /^can you define /, /^who was /, /^tell me about the /
+        /^can you tell me about /, /^can you explain /, /^can you define /,
+        /^who was /, /^tell me about the /
       ];
       for (const pattern of patterns) {
         text = text.replace(pattern, "");
       }
-      return text;
-    }
-
-    async function handleChat() {
-      const inputBox = document.getElementById("input");
-      const query = inputBox.value.trim();
-      if (!query) return;
-
-      inputBox.value = "";
-      addMessage("You", query);
-
-      const pythonCode = `answer(${JSON.stringify(query)})`;
-      let pyAnswer = await pyodide.runPythonAsync(pythonCode);
-
-      if (pyAnswer === "__wikipedia__") {
-        const topic = extractWikiTopic(query);
-        const summary = await fetchWiki(topic);
-        pyAnswer = summary || "I couldn't find anything on Wikipedia.";
-      }
-
-      addMessage("ELARA", pyAnswer);
-    }
-
-    function addMessage(sender, message) {
-      const chat = document.getElementById("chat");
-      const div = document.createElement("div");
-      div.innerHTML = `<strong>${sender}:</strong> ${message}`;
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function showDisambiguationOptions(title, options) {
-      const chat = document.getElementById("chat");
-      const div = document.createElement("div");
-      div.innerHTML = `<strong>Select what you meant by "${title}":</strong><br>`;
-
-      options.forEach(option => {
-        const btn = document.createElement("button");
-        btn.textContent = option;
-        btn.onclick = async () => {
-          addMessage("You", option);
-          const summary = await fetchWiki(option, true);
-          addMessage("ELARA", summary);
-        };
-        btn.style.margin = "4px";
-        div.appendChild(btn);
-      });
-
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
+      return text.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
     }
 
     async function fetchWiki(title, direct = false) {
+      console.log("Fetching summary for:", title);
       const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&titles=${encodeURIComponent(title)}&prop=extracts|pageprops&exintro=1&explaintext=1&redirects=1`;
 
       try {
@@ -104,7 +112,7 @@
           const searchData = await searchRes.json();
           const options = searchData.query.search.map(entry => entry.title);
           showDisambiguationOptions(title, options);
-          return `Hmm, "${title}" could refer to multiple things. Please select one:`;
+          return "__disambiguation__";
         }
 
         return page.extract || "No summary available.";
@@ -114,7 +122,38 @@
       }
     }
 
-    main();
+    function showDisambiguationOptions(title, options) {
+      const chat = document.getElementById("chat");
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>Options for "${title}":</strong><br>`;
+
+      options.forEach(option => {
+        const btn = document.createElement("button");
+        btn.textContent = option;
+        btn.onclick = async () => {
+          addMessage("You", option);
+          const summary = await fetchWiki(option, true);
+          addMessage("ELARA", summary);
+        };
+        div.appendChild(btn);
+      });
+
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function addMessage(sender, message) {
+      const chat = document.getElementById("chat");
+      const div = document.createElement("div");
+      div.innerHTML = `<strong>${sender}:</strong> ${message.replace(/\n/g, "<br>")}`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    
+
+    main(); // Start Pyodide loading
   </script>
+
 </body>
 </html>
