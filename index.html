@@ -21,7 +21,7 @@
 </head>
 <body>
   <div id="loadingScreen">Waking ELARA...</div>
-  <h2>ELARA V1.0</h2>
+  <h2>ELARA V1.5</h2>
   <div id="chat"></div>
   <input id="input" type="text" placeholder="Ask me something..." onkeydown="checkEnter(event)">
   <button onclick="handleChat()">Send</button>
@@ -37,15 +37,18 @@
       await pyodide.runPythonAsync(pyCode);
       document.getElementById("loadingScreen").style.display = "none"; // Hide the loading screen
       console.log("Pyodide and chatbot.py loaded successfully");
+      addMessage("ELARA", "Hello! I'm ELARA, your AI assistant. How can I help you today?");
     }
 
     async function handleChat() {
       const inputBox = document.getElementById("input");
-      const query = inputBox.value.trim();
+      let query = inputBox.value.trim();
       inputBox.value = "";
 
       addMessage("You", query);
       console.log("User asked:", query);
+
+      query = query.replace(/[.,\/#!$%\^&\*\;:{}=_`~()?"']/g, "").trim();
 
       const pythonCode = `answer(${JSON.stringify(query)})`;
       let pyAnswer = await pyodide.runPythonAsync(pythonCode);
@@ -69,11 +72,24 @@
         return;
       }
 
+      if (pyAnswer === "__clear__") {
+        console.log("Clearing chat...");
+        clearChat();
+        return;
+      }
+
       addMessage("ELARA", pyAnswer);
     }
 
     function resetChat() {
         window.location.reload();
+    }
+
+    function clearChat() {
+        const chatBox = document.getElementById("chat"); // Assuming chat is the container for chat messages
+        chatBox.innerHTML = ""; // Clear all chat messages
+        console.log("Chat cleared.");
+        addMessage("ELARA", "Hello! I'm ELARA, your AI assistant. How can I help you today?");
     }
 
     function checkEnter(event) {
@@ -88,7 +104,7 @@
         /^who is /, /^what is /, /^tell me about /, /^do you know /,
         /^explain /, /^define /, /^give me information about /,
         /^can you tell me about /, /^can you explain /, /^can you define /,
-        /^who was /, /^tell me about the /
+        /^who was /, /^what are/, /^the /
       ];
       for (const pattern of patterns) {
         text = text.replace(pattern, "");
@@ -115,7 +131,7 @@
           return "__disambiguation__";
         }
 
-        return page.extract || "No summary available.";
+        return page.extract || "Sorry I didn't understand. Can you try rewording it?";
       } catch (error) {
         console.error("Wikipedia fetch error:", error);
         return "Sorry, I couldn't fetch that information.";
@@ -145,12 +161,37 @@
     function addMessage(sender, message) {
       const chat = document.getElementById("chat");
       const div = document.createElement("div");
-      div.innerHTML = `<strong>${sender}:</strong> ${message.replace(/\n/g, "<br>")}`;
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
-    }
 
-    
+      if (sender === "ELARA") {
+        const typingSpan = document.createElement("span");
+        typingSpan.className = "typing";
+        const cursorSpan = document.createElement("span");
+        cursorSpan.className = "cursor";
+        cursorSpan.textContent = "|";
+
+        div.innerHTML = `<strong>${sender}:</strong> `;
+        div.appendChild(typingSpan);
+        div.appendChild(cursorSpan);
+
+        let i = 0;
+        function type() {
+          if (i < message.length) {
+            typingSpan.innerHTML += message[i] === '\n' ? "<br>" : message[i];
+            i++;
+            chat.scrollTop = chat.scrollHeight;
+            setTimeout(type, 5);
+          } else {
+            cursorSpan.remove(); // Properly remove the cursor once done
+          }
+        }
+
+        type();
+      } else {
+        div.innerHTML = `<strong>${sender}:</strong> ${message.replace(/\n/g, "<br>")}`;
+      }
+    }
 
     main(); // Start Pyodide loading
   </script>

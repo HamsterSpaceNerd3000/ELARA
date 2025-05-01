@@ -1,22 +1,22 @@
 import re
 
 def answer(q):
-    q = q.lower()
-    
-    if q.strip() in ["hi", "hello"]:
+    q = q.lower().strip()
+
+    if re.fullmatch(r"hi|hello", q):
         return "Hello! How can I assist you today?"
-    elif "your name" in q:
+    elif re.search(r"\b(your name|who are you)\b", q):
         return "My name is ELARA! I am a powerful python / JavaScript integrated chatbot meant to assist you with many tasks!"
-    elif "restart" in q:
+    elif re.fullmatch(r"restart", q):
         return "__restart__"
-    elif "add" in q or "plus" in q:
+    elif re.search(r"\b(add|plus)\b", q):
         return str(eval(q.replace("plus", "+")))
     elif re.fullmatch(r"[\d\s\+\-\*/\.\(\)]+", q):  # Only math allowed here
         try:
             return str(eval(q))
         except:
             return "I couldn't do that math."
-    elif "roadmap" in q or "your future development" in q:
+    elif re.search(r"\b(roadmap|your future development)\b", q):
         return """Below is my roadmap:
         \n1. Increase query reading reliability
         \n2. Give more personality
@@ -24,7 +24,7 @@ def answer(q):
         \n4. Integrate more abilities (coding for example)"""
     elif "how developed" in q and "you" in q:
         return "Currently my developer says I am in 'stage 1.0' so they are focusing on increasing my query reading reliability"
-    elif "how does ELARA work" in q or "how does ELARA function" in q or "how do you work" in q:
+    elif re.search(r"\b(how does ELARA work|how does ELARA function|how do you work)\b", q):
         return """ELARA (Engineering Logic & Analysis Relay Assistant) operates by integrating several core technologies, including artificial intelligence (AI), natural language processing (NLP), Python code execution, and access to external resources like Wikipedia. Here's a breakdown of how it functions:
 
         1. **User Input Capture**: When you type a question or command into the input box, the input is captured by the HTML form on the frontend. This input is then sent to the backend for processing.
@@ -51,5 +51,7 @@ def answer(q):
 
         **In Summary**:
         - ELARA combines Python execution in the browser via Pyodide, natural language processing, and access to external APIs like Wikipedia to provide intelligent, interactive responses. It adapts based on the user's queries and can perform complex tasks by executing Python code directly within the browser environment."""
+    elif re.search(r"\b(clear)\b", q):
+        return "__clear__"
     else:
         return "__wikipedia__"

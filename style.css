@@ -29,7 +29,7 @@ body {
   }
   
   input {
-    width: 70%;
+    width: 92%;
     padding: 10px;
     font-size: 1em;
     border: 1px solid #00ffe7;
@@ -92,4 +92,18 @@ body {
   .futuristic-button:hover {
     background-color: rgba(0, 255, 231, 0.1);
   }
+  
+  .cursor {
+    display: inline-block;
+    margin-left: 2px;
+    width: 8px;
+    animation: blink 1s step-start infinite;
+  }
+  
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+  
+
+  
   
