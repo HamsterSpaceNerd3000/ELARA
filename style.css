@@ -1,7 +1,7 @@
 /* style.css - Futuristic theme for ELARA */
 
 body {
-  font-family: "Orbitron", sans-serif; padding: 20px;
+  font-family: "Orbitron"; padding: 20px;
   background: radial-gradient(circle at center, #0f2027, #203a43, #2c5364);
   color: #00ffe7;
   margin: 0;
@@ -106,6 +106,22 @@ button:active {
   z-index: 9999;
   font-family: "Orbitron", sans-serif;
   letter-spacing: 1px;
+}
+
+#loadingScreen {
+  position: fixed; /* Make it cover the entire screen */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, #0f2027, #203a43, #2c5364); /* Background gradient */
+  color: #00ffe7; /* Text color */
+  display: flex;
+  justify-content: center; /* Center the text horizontally */
+  align-items: center; /* Center the text vertically */
+  font-size: 1.5em; /* Increase font size */
+  font-family: "Orbitron", sans-serif; /* Match the font used in the rest of the app */
+  z-index: 1000; /* Ensure it appears above other elements */
 }
 
 .futuristic-button {
