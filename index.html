@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,26 +9,22 @@
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
-  <style>
-    body { font-family: 'Orbitron', sans-serif; padding: 20px; }
-    #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-bottom: 10px; }
-    input { width: 70%; }
-    #loadingScreen { 
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.8); display: flex; justify-content: center;
-      align-items: center; font-size: 24px; color: white; z-index: 999;
-    }
-  </style>
 </head>
+
 <body>
   <div id="loadingScreen">Waking ELARA...</div>
   <h2>ELARA V1.5</h2>
   <div id="chat"></div>
-  <input id="input" type="text" placeholder="Ask me something..." onkeydown="checkEnter(event)">
-  <button onclick="handleChat()">Send</button>
+  <div id="input-container">
+    <input id="input" type="text" placeholder="Ask me something..." onkeydown="checkEnter(event)">
+    <button id="sendButton" onclick="handleChat()">Send</button>
+    <button id="stopButton" onclick="stopResponse()" style="display: none;">Stop</button>
+  </div>
 
   <script>
     let pyodide;
+    let isResponding = false; // Track if ELARA is currently responding
+    let stopRequested = false; // Track if the user requested to stop the response
 
     async function main() {
       console.log("Loading Pyodide...");
@@ -45,51 +42,105 @@
       let query = inputBox.value.trim();
       inputBox.value = "";
 
+      // Reset the stopRequested flag for a new interaction
+      stopRequested = false;
+
+      // Add the user's message to the chat
       addMessage("You", query);
       console.log("User asked:", query);
 
       query = query.replace(/[.,\/#!$%\^&\*\;:{}=_`~()?"']/g, "").trim();
 
       const pythonCode = `answer(${JSON.stringify(query)})`;
-      let pyAnswer = await pyodide.runPythonAsync(pythonCode);
-      console.log("Python returned:", pyAnswer);
+      let pyAnswer;
 
-      if (pyAnswer === "__wikipedia__") {
-        const topic = extractWikiTopic(query);
-        console.log("Fallback to Wikipedia for topic:", topic);
-        const summary = await fetchWiki(topic);
-        if (summary !== "__disambiguation__") {
-          addMessage("ELARA", summary);
+      // Switch to "Stop" button
+      toggleButtons("stop");
+
+      try {
+        isResponding = true;
+        pyAnswer = await pyodide.runPythonAsync(pythonCode);
+        console.log("Python returned:", pyAnswer);
+
+        // Handle Python instructions
+        if (pyAnswer === "__restart__") {
+          console.log("Restarting ELARA...");
+          resetChat();
+          await main(); // Reinitialize Pyodide
+          addMessage("ELARA", "ELARA has been restarted.");
+          return;
         }
-        return;
-      }
 
-      if (pyAnswer === "__restart__") {
-        console.log("Restarting ELARA...");
-        resetChat();
-        await main();  // Reinitialize Pyodide
-        addMessage("ELARA", "ELARA has been restarted.");
-        return;
-      }
+        if (pyAnswer === "__clear__") {
+          console.log("Clearing chat...");
+          clearChat();
+          return;
+        }
 
-      if (pyAnswer === "__clear__") {
-        console.log("Clearing chat...");
-        clearChat();
-        return;
-      }
+        // If Python tells us to go straight to Wikipedia
+        if (pyAnswer === "__wikipedia__") {
+          const topic = extractWikiTopic(query);
+          const summary = await fetchWiki(topic);
+          if (summary !== "__disambiguation__") {
+            addMessage("ELARA", summary);
+          }
+          return;
+        }
 
-      addMessage("ELARA", pyAnswer);
+        // If Python produced a good answer, just return it
+        addMessage("ELARA", pyAnswer);
+      } catch (error) {
+        console.error("Error during response:", error);
+      } finally {
+        isResponding = false;
+        if (!stopRequested) {
+          toggleButtons("send"); // Ensure "Send" button is restored if not stopped manually
+        }
+      }
+    }
+
+    function stopResponse() {
+      if (isResponding) {
+        stopRequested = true; // Mark that the user requested to stop
+        isResponding = false; // Stop ELARA's response
+
+        const chat = document.getElementById("chat");
+        const messages = chat.querySelectorAll("div");
+        if (messages.length >= 2) {
+          chat.removeChild(messages[messages.length - 1]); // Remove ELARA's response
+          chat.removeChild(messages[messages.length - 1]); // Remove user's query
+        }
+
+        toggleButtons("send"); // Switch back to "Send" button
+        addMessage("ELARA", "Response stopped and cleared.");
+
+        // Reset the stop flag AFTER everything is cleaned up
+        stopRequested = false;
+      }
+    }
+
+    function toggleButtons(activeButton) {
+      const sendButton = document.getElementById("sendButton");
+      const stopButton = document.getElementById("stopButton");
+
+      if (activeButton === "stop") {
+        sendButton.style.display = "none"; // Hide the "Send" button
+        stopButton.style.display = "inline-block"; // Show the "Stop" button
+      } else {
+        sendButton.style.display = "inline-block"; // Show the "Send" button
+        stopButton.style.display = "none"; // Hide the "Stop" button
+      }
     }
 
     function resetChat() {
-        window.location.reload();
+      window.location.reload();
     }
 
     function clearChat() {
-        const chatBox = document.getElementById("chat"); // Assuming chat is the container for chat messages
-        chatBox.innerHTML = ""; // Clear all chat messages
-        console.log("Chat cleared.");
-        addMessage("ELARA", "Hello! I'm ELARA, your AI assistant. How can I help you today?");
+      const chatBox = document.getElementById("chat"); // Assuming chat is the container for chat messages
+      chatBox.innerHTML = ""; // Clear all chat messages
+      console.log("Chat cleared.");
+      addMessage("ELARA", "Hello! I'm ELARA, your AI assistant. How can I help you today?");
     }
 
     function checkEnter(event) {
@@ -161,6 +212,7 @@
     function addMessage(sender, message) {
       const chat = document.getElementById("chat");
       const div = document.createElement("div");
+      div.className = sender === "ELARA" ? "elara-message" : "user-message";
       chat.appendChild(div);
       chat.scrollTop = chat.scrollHeight;
 
@@ -176,14 +228,23 @@
         div.appendChild(cursorSpan);
 
         let i = 0;
+
         function type() {
+          if (stopRequested) {
+            cursorSpan.remove();
+            return; // Do NOT call toggleButtons("send") if stopped
+          }
+
           if (i < message.length) {
             typingSpan.innerHTML += message[i] === '\n' ? "<br>" : message[i];
             i++;
             chat.scrollTop = chat.scrollHeight;
             setTimeout(type, 5);
           } else {
-            cursorSpan.remove(); // Properly remove the cursor once done
+            cursorSpan.remove();
+            if (!stopRequested) {
+              toggleButtons("send");
+            }
           }
         }
 
@@ -197,18 +258,16 @@
       document.getElementById("helpModal").style.display = "none";
     }
 
-    window.onload = () => {
-      document.getElementById("helpModal").style.display = "flex";
-      main(); // Don't forget to still start ELARA
+    window.onload = async () => {
+      await main(); // Start ELARA and wait for it to finish loading
+      document.getElementById("helpModal").style.display = "flex"; // Show the help modal after loading is complete
     };
-
-        
   </script>
 
 </body>
-<div id="helpModal" class="modal">
+<div id="helpModal" class="modal" style="display: none;"> <!-- Initially hidden -->
   <div class="modal-content">
-    <span class="close" onclick="closeModal()">&times;</span>
+    <span class="close" onclick="closeModal()"> Close &times;</span>
     <h3>Welcome to ELARA V1.5!</h3>
     <p>You can ask ELARA questions like:</p>
     <ul>
